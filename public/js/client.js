@@ -125,6 +125,12 @@ socket.on('auth_ok', ({ username, chess_points, role }) => {
   state.username = username;
   state.chess_points = chess_points;
   hidePinModal();
+  // show welcome message on the opponent selection screen
+  const welcome = document.getElementById('welcome-msg');
+  if (welcome) {
+    welcome.textContent = `Welcome, ${username}` + (typeof chess_points !== 'undefined' ? ` — ${chess_points} pts` : '');
+    welcome.classList.remove('hidden');
+  }
 });
 
 // ── Utility: show a named screen ──────────────────────────────────────────────
@@ -655,18 +661,69 @@ function setPlayerNames(data) {
   // Show AI label including elo when applicable
   let oppLabel = 'Opponent';
   if (data.mode === 'ai') {
-    const elo = data.aiLevel || data.aiLevel === 0 ? data.aiLevel : (state.chosenAiLevel || 900);
+    const elo = (data.aiLevel || data.aiLevel === 0) ? data.aiLevel : (state.chosenAiLevel || 900);
     oppLabel = `AI (${elo})`;
   }
 
-  if (state.myColor === 'w') {
-    botEl.textContent = 'You (White)';
-    topEl.textContent = oppLabel + ' (Black)';
+  // Decide labels using authenticated names if available
+  const playersInfo = data.playersInfo || {};
+
+  const myRoleName = state.myColor === 'w' ? 'White' : 'Black';
+  const oppRoleName = oppColor === 'w' ? 'White' : 'Black';
+
+  // My label
+  let myLabel;
+  if (state.username) {
+    myLabel = `${state.username} (${myRoleName})`;
+    if (typeof state.chess_points !== 'undefined') myLabel += ` — ${state.chess_points} pts`;
   } else {
-    botEl.textContent = 'You (Black)';
-    topEl.textContent = oppLabel + ' (White)';
+    myLabel = `You (${myRoleName})`;
+  }
+
+  // Opponent label
+  let opponentLabel;
+  if (data.mode === 'ai') {
+    opponentLabel = oppLabel + ` (${oppRoleName})`;
+  } else if (playersInfo && playersInfo[oppColor] && playersInfo[oppColor].username) {
+    opponentLabel = `${playersInfo[oppColor].username} (${oppRoleName})`;
+    if (playersInfo[oppColor].chess_points || playersInfo[oppColor].chess_points === 0) {
+      opponentLabel += ` — ${playersInfo[oppColor].chess_points} pts`;
+    }
+  } else {
+    opponentLabel = `Opponent (${oppRoleName})`;
+  }
+
+  if (state.myColor === 'w') {
+    botEl.textContent = myLabel;
+    topEl.textContent = opponentLabel;
+  } else {
+    botEl.textContent = myLabel;
+    topEl.textContent = opponentLabel;
   }
 }
+
+// display a transient toast message
+function showToast(msg, ms = 3000) {
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => { t.remove(); }, ms);
+}
+
+socket.on('points_update', ({ chess_points }) => {
+  console.log('[client] points_update', chess_points);
+  state.chess_points = chess_points;
+  // update name area
+  // re-run setPlayerNames with last-known game data if available
+  // we don't have the last game payload here; just update bottom label if exists
+  const botEl = document.getElementById('name-bottom');
+  if (botEl && state.username) {
+    const roleName = state.myColor === 'w' ? 'White' : 'Black';
+    botEl.textContent = `${state.username} (${roleName}) — ${state.chess_points} pts`;
+  }
+  showToast('You earned +1 chess point! New score: ' + chess_points, 4000);
+});
 
 function highlightAiLevel(level) {
   ['400','900','1300'].forEach(l => {

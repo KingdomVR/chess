@@ -331,3 +331,21 @@ button:active { transform: scale(0.97); }
 .kp-empty { background: transparent; cursor: default; }
 .pin-actions { display:flex; gap:8px; justify-content:center; margin-top:8px; }
 
+/* Welcome / small text */
+.welcome { color: #cfe8c7; margin: 8px 0 12px; font-size: 1rem; }
+
+/* Toast notification for points */
+.toast {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 22px;
+  background: linear-gradient(180deg,#3a7a3a,#2f5f2f);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+  z-index: 500;
+  font-weight: 700;
+}
+

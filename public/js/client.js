@@ -83,21 +83,25 @@ function bindUI() {
 
 socket.on('choose_opponent', () => {
   state.myColor = 'w';
+  console.log('[client] choose_opponent (you are white)');
   showScreen('screen-choose-opponent');
 });
 
 socket.on('choose_time', ({ role }) => {
   if (role === 'black') state.myColor = 'b';
+  console.log('[client] choose_time role=', role);
   showScreen('screen-choose-time');
 });
 
 socket.on('waiting_for_opponent', () => {
+  console.log('[client] waiting_for_opponent');
   showScreen('screen-waiting');
 });
 
 socket.on('opponent_joined', () => {
   document.getElementById('waiting-msg').textContent =
     'Opponent joined — waiting for time selection…';
+  console.log('[client] opponent_joined');
 });
 
 socket.on('opponent_left', () => {
@@ -105,6 +109,7 @@ socket.on('opponent_left', () => {
 });
 
 socket.on('game_start', (data) => {
+  console.log('[client] game_start', data);
   // Determine our colour from the players map
   if (data.players.white === socket.id)      state.myColor = 'w';
   else if (data.players.black === socket.id) state.myColor = 'b';
@@ -125,6 +130,7 @@ socket.on('game_start', (data) => {
 });
 
 socket.on('move_made', (data) => {
+  console.log('[client] move_made', data.move || data);
   state.fen         = data.fen;
   state.timers      = Object.assign({}, data.timers);
   state.currentTurn = data.currentTurn;
@@ -137,11 +143,13 @@ socket.on('move_made', (data) => {
 });
 
 socket.on('invalid_move', () => {
+  console.log('[client] invalid_move');
   state.selectedSq = null;
   renderBoard('board');
 });
 
 socket.on('game_over', (data) => {
+  console.log('[client] game_over', data);
   stopTimerLoop();
   state.fen    = data.fen;
   state.timers = Object.assign({}, data.timers);
@@ -178,6 +186,7 @@ socket.on('game_over', (data) => {
 });
 
 socket.on('spectator', (data) => {
+  console.log('[client] spectator', data);
   state.isSpectator = true;
   state.myColor     = 'w';
   if (data.fen) {
@@ -198,6 +207,7 @@ socket.on('spectator', (data) => {
 
 socket.on('room_full', () => {
   alert('This room is already full.');
+  console.log('[client] room_full');
 });
 
 // ── Board rendering ────────────────────────────────────────────────────────────
@@ -306,11 +316,18 @@ function renderBoard(boardId, lastMove) {
         sqEl.appendChild(file);
       }
 
-      // Piece
+      // Piece (image with unicode fallback)
       if (piece) {
         const pieceEl = document.createElement('div');
         pieceEl.className = 'piece piece-' + piece.color;
-        pieceEl.textContent = PIECE_UNICODE[piece.color + piece.type] || '?';
+
+        const img = document.createElement('img');
+        img.src = `/img/${piece.color}${piece.type}.svg`;
+        img.alt = piece.color + piece.type;
+        img.addEventListener('error', () => {
+          pieceEl.textContent = PIECE_UNICODE[piece.color + piece.type] || '?';
+        });
+        pieceEl.appendChild(img);
         sqEl.appendChild(pieceEl);
       }
 
@@ -393,7 +410,13 @@ function showPromoModal() {
   pieces.forEach(type => {
     const el = document.createElement('div');
     el.className = 'promo-piece';
-    el.textContent = PIECE_UNICODE[col + type];
+    const img = document.createElement('img');
+    img.src = `/img/${col}${type}.svg`;
+    img.alt = col + type;
+    img.addEventListener('error', () => {
+      el.textContent = PIECE_UNICODE[col + type];
+    });
+    el.appendChild(img);
     el.addEventListener('click', () => {
       if (state.pendingPromo) {
         socket.emit('make_move', {

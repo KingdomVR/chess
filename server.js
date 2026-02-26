@@ -276,6 +276,9 @@ io.on('connection', (socket) => {
     if (!roomId || typeof roomId !== 'string') return;
     const room = getOrCreateRoom(roomId);
 
+    console.log(`[join_room] ${socket.id} -> ${roomId} (status=${room.status}, mode=${room.mode})`);
+
+    // If a game is active or finished, join as spectator
     if (room.status === 'playing' || room.status === 'finished') {
       socket.join(roomId);
       socket.emit('spectator', {
@@ -289,27 +292,33 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // If no white yet, claim white
     if (!room.players.white) {
-      // First player — always white
       room.players.white = socket.id;
       socket.join(roomId);
       room.status = 'choosing_opponent';
       socket.emit('choose_opponent', { roomId });
-    } else if (room.status === 'waiting_for_second' && !room.players.black) {
-      // Second player joining a human game
+      return;
+    }
+
+    // If room is in AI flow (white has chosen AI or black already set to 'ai'), don't allow a second human to take the slot
+    if (room.mode === 'ai' || room.players.black === 'ai') {
+      socket.emit('room_full');
+      return;
+    }
+
+    // If waiting for second player in a human game, allow black to join
+    if (room.status === 'waiting_for_second' && !room.players.black) {
       room.players.black = socket.id;
       socket.join(roomId);
       room.status = 'choosing_time';
       io.to(room.players.white).emit('opponent_joined');
       socket.emit('choose_time', { role: 'black', roomId });
-    } else {
-      // Room already has the slots filled; join as spectator
-      socket.join(roomId);
-      socket.emit('spectator', {
-        fen: room.game ? room.game.fen() : null,
-        status: room.status,
-      });
+      return;
     }
+
+    // Otherwise the player slots are taken — notify client
+    socket.emit('room_full');
   });
 
   // ── choose_opponent ────────────────────────────────────────────────────────
@@ -318,6 +327,7 @@ io.on('connection', (socket) => {
     if (!room || room.status !== 'choosing_opponent') return;
     if (room.players.white !== socket.id) return;
 
+    console.log(`[choose_opponent] ${socket.id} in ${room.id} -> ${type}`);
     room.mode = type;
     if (type === 'ai') {
       room.status = 'choosing_time';
@@ -339,6 +349,7 @@ io.on('connection', (socket) => {
     if (room.mode === 'ai' && room.players.white !== socket.id) return;
     if (room.mode === 'human' && room.players.black !== socket.id) return;
 
+    console.log(`[choose_time] ${socket.id} in ${room.id} -> ${minutes} min`);
     const seconds = minutes * 60;
     room.initialTime = seconds;
     room.timers = { w: seconds, b: seconds };
@@ -356,6 +367,8 @@ io.on('connection', (socket) => {
 
     const playerColor = getPlayerColor(room, socket.id);
     if (!playerColor || playerColor !== room.game.turn()) return;
+
+    console.log(`[make_move] ${socket.id} in ${room.id} ${playerColor}: ${from} -> ${to}${promotion ? (' promo=' + promotion) : ''}`);
 
     // Deduct time the player spent thinking
     const elapsed = (Date.now() - room.turnStartTime) / 1000;
@@ -376,6 +389,7 @@ io.on('connection', (socket) => {
       // Restore thinking time — the move was illegal
       room.timers[playerColor] += elapsed;
       socket.emit('invalid_move', { from, to });
+      console.log(`[invalid_move] ${socket.id} attempted illegal move ${from}->${to} in ${room.id}`);
       return;
     }
 
@@ -398,6 +412,7 @@ io.on('connection', (socket) => {
 
     room.turnStartTime = Date.now();
     io.to(room.id).emit('move_made', moveMadePayload);
+    console.log(`[move_made] ${room.id} ${playerColor}: ${from}->${to}`);
     startTimeout(room);
 
     // AI response (only when it's the AI's turn)
@@ -457,39 +472,50 @@ io.on('connection', (socket) => {
 // ── AI move scheduling ────────────────────────────────────────────────────────
 
 function scheduleAiMove(room) {
-  // Small delay so the AI doesn't appear to move instantly
-  setTimeout(() => {
-    if (room.status !== 'playing') return;
+  // Compute move quickly, then wait a randomized 2-5s before applying it.
+  if (room.status !== 'playing' || room.game.turn() !== 'b') return;
 
-    const aiStart = Date.now();
-    const aiMove = getBestMove(room.game);
+  try {
+    const chessClone = new Chess(room.game.fen());
+    const computeStart = Date.now();
+    const aiMove = getBestMove(chessClone);
+    const computeMs = Date.now() - computeStart;
     if (!aiMove) return;
 
-    const aiElapsed = (Date.now() - aiStart) / 1000;
-    room.timers.b = Math.max(0, room.timers.b - aiElapsed);
+    const delay = 2000 + Math.floor(Math.random() * 3000); // 2000..4999 ms
+    console.log(`[ai] room=${room.id} computed move=${aiMove} in ${computeMs}ms; responding after ${delay}ms`);
 
-    room.game.move(aiMove);
-    clearRoomTimeout(room);
+    setTimeout(() => {
+      if (room.status !== 'playing' || room.game.turn() !== 'b') return;
 
-    const over = room.game.game_over();
-    const payload = {
-      move: { san: aiMove, from: null, to: null },
-      fen: room.game.fen(),
-      timers: Object.assign({}, room.timers),
-      currentTurn: room.game.turn(),
-      serverTime: Date.now(),
-    };
+      // Deduct only compute time from AI clock (not the artificial wait)
+      room.timers.b = Math.max(0, room.timers.b - (computeMs / 1000));
 
-    if (over) {
+      room.game.move(aiMove);
+      clearRoomTimeout(room);
+
+      const over = room.game.game_over();
+      const payload = {
+        move: { san: aiMove, from: null, to: null },
+        fen: room.game.fen(),
+        timers: Object.assign({}, room.timers),
+        currentTurn: room.game.turn(),
+        serverTime: Date.now(),
+      };
+
+      if (over) {
+        io.to(room.id).emit('move_made', payload);
+        endGame(room, getCheckmateWinner(room.game), getGameEndReason(room.game));
+        return;
+      }
+
+      room.turnStartTime = Date.now();
       io.to(room.id).emit('move_made', payload);
-      endGame(room, getCheckmateWinner(room.game), getGameEndReason(room.game));
-      return;
-    }
-
-    room.turnStartTime = Date.now();
-    io.to(room.id).emit('move_made', payload);
-    startTimeout(room);
-  }, 400);
+      startTimeout(room);
+    }, delay);
+  } catch (e) {
+    console.error('[ai] error scheduling move', e);
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

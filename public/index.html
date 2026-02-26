@@ -17,12 +17,12 @@
 
     <!-- Choose Opponent -->
     <div id="screen-choose-opponent" class="screen hidden">
-      <h1>♟ Chess</h1>
+      <h1>♟ KingdomVR Chess ♟</h1>
       <p class="room-label">Room: <strong id="room-display"></strong></p>
       <h2>Choose your opponent</h2>
       <div class="btn-row">
-        <button id="btn-ai" class="big-btn">🤖 Play vs AI</button>
-        <button id="btn-human" class="big-btn">👤 Play vs Human</button>
+        <button id="btn-ai" class="big-btn">🤖 Play vs AI 🤖</button>
+        <button id="btn-human" class="big-btn">👤 Play vs Human 👤</button>
       </div>
     </div>
 
@@ -91,10 +91,8 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <!-- chess.js for client-side move highlighting -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"
-          integrity="sha384-OLBgp1GsljhM2TJ+sbHjaiH9txEUvgdDTAzHv2P24donTt6/529l+9Ua0vFImLlb"
-          crossorigin="anonymous"></script>
+  <!-- chess.js for client-side move highlighting (CDN; integrity removed to avoid mismatches) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
   <script src="/js/client.js"></script>
 </body>
 </html>

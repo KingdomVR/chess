@@ -10,6 +10,10 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+// External user API config
+const USER_API_BASE = process.env.USER_API_BASE || 'http://127.0.0.1:5000';
+const USER_API_KEY = process.env.USER_API_KEY || 'supersecret';
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 // rooms: Map<roomId, RoomState>
@@ -36,6 +40,7 @@ function getOrCreateRoom(roomId) {
       status: 'waiting',
       mode: null,
       players: { white: null, black: null },
+      playerInfo: { white: null, black: null }, // { username, chess_points }
       game: null,
       timers: null,
       initialTime: null,
@@ -313,6 +318,36 @@ function endGame(room, winner, reason) {
   room.status = 'finished';
   const timers = getTimerSnapshot(room);
   io.to(room.id).emit('game_over', { winner, reason, fen: room.game.fen(), timers });
+  // Update points for winner if the winner is a human player
+  try {
+    if (winner && room.playerInfo) {
+      let role = null;
+      if (winner === 'w') role = 'white';
+      if (winner === 'b') role = 'black';
+      const info = room.playerInfo[role];
+      // Only award points for actual users (not AI)
+      if (info && info.username) {
+        // increment local copy and persist via PATCH
+        const newPoints = (info.chess_points || 0) + 1;
+        info.chess_points = newPoints;
+        // fire-and-forget update
+        (async () => {
+          try {
+            await updateUserPoints(info.username, newPoints);
+            // notify the winner socket of their new score if they're connected
+            const sockId = room.players[role];
+            if (sockId && sockId !== 'ai') {
+              io.to(sockId).emit('points_update', { chess_points: newPoints });
+            }
+          } catch (e) {
+            console.error('[points] failed to update points for', info.username, e);
+          }
+        })();
+      }
+    }
+  } catch (e) {
+    console.error('[points] error in endGame points flow', e);
+  }
   // Keep the room around briefly so late-arriving clients can see the result
   setTimeout(() => rooms.delete(room.id), 60000);
 }
@@ -327,6 +362,7 @@ function startGame(room) {
     aiLevel: room.aiLevel || null,
     timers: Object.assign({}, room.timers),
     players: room.players,
+    playersInfo: room.playerInfo,
     currentTurn: 'w',
     serverTime: Date.now(),
   });
@@ -360,12 +396,13 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // If no white yet, claim white
+    // If no white yet, claim white and require authentication
     if (!room.players.white) {
       room.players.white = socket.id;
       socket.join(roomId);
-      room.status = 'choosing_opponent';
-      socket.emit('choose_opponent', { roomId });
+      room.status = 'authenticating_white';
+      // ask the client for their PIN so we can lookup username/score
+      socket.emit('request_pin', { role: 'white' });
       return;
     }
 
@@ -375,13 +412,13 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // If waiting for second player in a human game, allow black to join
+    // If waiting for second player in a human game, allow black to join and require auth
     if (room.status === 'waiting_for_second' && !room.players.black) {
       room.players.black = socket.id;
       socket.join(roomId);
-      room.status = 'choosing_time';
+      room.status = 'authenticating_black';
       io.to(room.players.white).emit('opponent_joined');
-      socket.emit('choose_time', { role: 'black', roomId });
+      socket.emit('request_pin', { role: 'black' });
       return;
     }
 
@@ -408,6 +445,56 @@ io.on('connection', (socket) => {
     } else {
       room.status = 'waiting_for_second';
       socket.emit('waiting_for_opponent', { roomId: room.id });
+    }
+  });
+
+  // ── auth_pin ─────────────────────────────────────────────────────────────
+  socket.on('auth_pin', async ({ pin }) => {
+    const room = getRoomForSocket(socket.id);
+    // allow auth even if room not yet fully assigned (e.g., just joined)
+    // find the room where this socket is either white or black
+    if (!room) {
+      socket.emit('auth_failed', { reason: 'no_room' });
+      return;
+    }
+
+    try {
+      const u = await fetchUserByPin(pin);
+      if (!u || !u.username) {
+        socket.emit('auth_failed', { reason: 'not_found' });
+        return;
+      }
+
+      // determine whether this socket is white or black in the room
+      let role = null;
+      if (room.players.white === socket.id) role = 'white';
+      else if (room.players.black === socket.id) role = 'black';
+      else {
+        socket.emit('auth_failed', { reason: 'not_player' });
+        return;
+      }
+
+      // store user info in room state
+      room.playerInfo[role] = { username: u.username, chess_points: u.chess_points || 0 };
+      socket.emit('auth_ok', { username: u.username, chess_points: u.chess_points || 0, role });
+      console.log(`[auth] ${socket.id} authenticated as ${u.username} (${role}) in ${room.id}`);
+
+      // advance the room flow depending on previous state
+      if (role === 'white' && room.status === 'authenticating_white') {
+        // proceed to choose opponent
+        room.status = 'choosing_opponent';
+        socket.emit('choose_opponent', { roomId: room.id });
+      }
+      if (role === 'black' && room.status === 'authenticating_black') {
+        // both players authenticated — proceed to time selection
+        room.status = 'choosing_time';
+        // notify white that opponent is ready
+        io.to(room.players.white).emit('opponent_joined');
+        io.to(room.players.black).emit('choose_time', { role: 'black', roomId: room.id });
+      }
+    } catch (e) {
+      console.error('[auth] error fetching user by pin', e);
+      socket.emit('auth_failed', { reason: 'error' });
     }
   });
 
@@ -615,6 +702,34 @@ function scheduleAiMove(room) {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+async function fetchUserByPin(pin) {
+  try {
+    const url = `${USER_API_BASE.replace(/\/$/, '')}/users/pin/${encodeURIComponent(pin)}`;
+    const res = await fetch(url, { headers: { 'X-API-Key': USER_API_KEY } });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    console.error('[fetchUserByPin] error', e);
+    return null;
+  }
+}
+
+async function updateUserPoints(username, points) {
+  try {
+    const url = `${USER_API_BASE.replace(/\/$/, '')}/users/${encodeURIComponent(username)}`;
+    const res = await fetch(url, {
+      method: 'PATCH',
+      headers: { 'X-API-Key': USER_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chess_points: points }),
+    });
+    if (!res.ok) throw new Error('update failed ' + res.status);
+    return await res.json();
+  } catch (e) {
+    console.error('[updateUserPoints] error', e);
+    throw e;
+  }
+}
 
 function getCheckmateWinner(chess) {
   if (chess.in_checkmate()) {

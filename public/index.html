@@ -69,6 +69,33 @@
       </div>
     </div>
 
+    <!-- PIN modal (entered via keypad) -->
+    <div id="pin-modal" class="modal hidden">
+      <div class="modal-content">
+        <h3>Enter PIN</h3>
+        <div id="pin-display" class="pin-display">&nbsp;</div>
+        <div class="pin-error" id="pin-error"></div>
+        <div class="keypad" id="pin-keypad">
+          <button class="kp-btn" data-digit="1">1</button>
+          <button class="kp-btn" data-digit="2">2</button>
+          <button class="kp-btn" data-digit="3">3</button>
+          <button class="kp-btn" data-digit="4">4</button>
+          <button class="kp-btn" data-digit="5">5</button>
+          <button class="kp-btn" data-digit="6">6</button>
+          <button class="kp-btn" data-digit="7">7</button>
+          <button class="kp-btn" data-digit="8">8</button>
+          <button class="kp-btn" data-digit="9">9</button>
+          <button class="kp-btn kp-empty" data-digit="clear">Clear</button>
+          <button class="kp-btn" data-digit="0">0</button>
+          <button class="kp-btn" data-digit="back">⌫</button>
+        </div>
+        <div class="pin-actions">
+          <button id="pin-submit" class="big-btn">Enter</button>
+          <button id="pin-cancel" class="big-btn">Cancel</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Waiting for Opponent -->
     <div id="screen-waiting" class="screen hidden">
       <h1>♟ KingdomVR Chess ♟</h1>

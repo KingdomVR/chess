@@ -40,6 +40,93 @@ window.addEventListener('DOMContentLoaded', () => {
   socket.emit('join_room', { roomId: state.roomId });
 });
 
+// PIN modal flow: show keypad modal and submit PIN to server
+let pinBuffer = '';
+let pinRole = null;
+
+function showPinModal(role) {
+  pinBuffer = '';
+  pinRole = role || null;
+  const modal = document.getElementById('pin-modal');
+  const display = document.getElementById('pin-display');
+  const err = document.getElementById('pin-error');
+  if (!modal || !display) return;
+  display.textContent = '';
+  if (err) err.textContent = '';
+  modal.classList.remove('hidden');
+}
+
+function hidePinModal() {
+  const modal = document.getElementById('pin-modal');
+  if (!modal) return;
+  modal.classList.add('hidden');
+  pinBuffer = '';
+  pinRole = null;
+}
+
+function updatePinDisplay() {
+  const display = document.getElementById('pin-display');
+  if (!display) return;
+  if (pinBuffer.length === 0) display.textContent = '\u00A0';
+  else display.textContent = '\u2022'.repeat(pinBuffer.length);
+}
+
+// keypad clicks
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest && e.target.closest('.kp-btn');
+  if (!btn) return;
+  const d = btn.dataset && btn.dataset.digit;
+  if (!d) return;
+  if (d === 'clear') {
+    pinBuffer = '';
+  } else if (d === 'back') {
+    pinBuffer = pinBuffer.slice(0, -1);
+  } else {
+    if (pinBuffer.length < 8) pinBuffer += d;
+  }
+  updatePinDisplay();
+});
+
+// modal action buttons
+document.addEventListener('click', (e) => {
+  if (!e.target) return;
+  if (e.target.id === 'pin-cancel') {
+    hidePinModal();
+    // let server handle re-asking if necessary
+  } else if (e.target.id === 'pin-submit') {
+    const err = document.getElementById('pin-error');
+    if (!pinBuffer || pinBuffer.length === 0) {
+      if (err) err.textContent = 'Please enter your PIN.';
+      return;
+    }
+    if (err) err.textContent = '';
+    console.log('[client] auth_pin submit', { pin: pinBuffer });
+    // disable modal while waiting
+    const modal = document.getElementById('pin-modal');
+    if (modal) modal.classList.add('hidden');
+    socket.emit('auth_pin', { pin: pinBuffer });
+  }
+});
+
+socket.on('request_pin', ({ role }) => {
+  showPinModal(role);
+});
+
+socket.on('auth_failed', ({ reason }) => {
+  const err = document.getElementById('pin-error');
+  if (err) err.textContent = 'Authentication failed' + (reason ? (': ' + reason) : '.');
+  // re-open modal so user can retry
+  const modal = document.getElementById('pin-modal');
+  if (modal) modal.classList.remove('hidden');
+});
+
+socket.on('auth_ok', ({ username, chess_points, role }) => {
+  console.log('[client] auth_ok', { username, chess_points, role });
+  state.username = username;
+  state.chess_points = chess_points;
+  hidePinModal();
+});
+
 // ── Utility: show a named screen ──────────────────────────────────────────────
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));

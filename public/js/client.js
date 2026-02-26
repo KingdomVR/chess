@@ -694,11 +694,19 @@ function setPlayerNames(data) {
   const myRoleName = state.myColor === 'w' ? 'White' : 'Black';
   const oppRoleName = oppColor === 'w' ? 'White' : 'Black';
 
+  // map short color to key used in playersInfo
+  const colorKey = (c) => (c === 'w' ? 'white' : 'black');
+  const myKey = colorKey(state.myColor);
+  const oppKey = colorKey(oppColor);
+
   // My label
   let myLabel;
   if (state.username) {
     myLabel = `${state.username} (${myRoleName})`;
     if (typeof state.chess_points !== 'undefined') myLabel += ` — ${state.chess_points} pts`;
+  } else if (playersInfo && playersInfo[myKey] && playersInfo[myKey].username) {
+    myLabel = `${playersInfo[myKey].username} (${myRoleName})`;
+    if (playersInfo[myKey].chess_points || playersInfo[myKey].chess_points === 0) myLabel += ` — ${playersInfo[myKey].chess_points} pts`;
   } else {
     myLabel = `You (${myRoleName})`;
   }
@@ -707,22 +715,17 @@ function setPlayerNames(data) {
   let opponentLabel;
   if (data.mode === 'ai') {
     opponentLabel = oppLabel + ` (${oppRoleName})`;
-  } else if (playersInfo && playersInfo[oppColor] && playersInfo[oppColor].username) {
-    opponentLabel = `${playersInfo[oppColor].username} (${oppRoleName})`;
-    if (playersInfo[oppColor].chess_points || playersInfo[oppColor].chess_points === 0) {
-      opponentLabel += ` — ${playersInfo[oppColor].chess_points} pts`;
+  } else if (playersInfo && playersInfo[oppKey] && playersInfo[oppKey].username) {
+    opponentLabel = `${playersInfo[oppKey].username} (${oppRoleName})`;
+    if (playersInfo[oppKey].chess_points || playersInfo[oppKey].chess_points === 0) {
+      opponentLabel += ` — ${playersInfo[oppKey].chess_points} pts`;
     }
   } else {
     opponentLabel = `Opponent (${oppRoleName})`;
   }
 
-  if (state.myColor === 'w') {
-    botEl.textContent = myLabel;
-    topEl.textContent = opponentLabel;
-  } else {
-    botEl.textContent = myLabel;
-    topEl.textContent = opponentLabel;
-  }
+  botEl.textContent = myLabel;
+  topEl.textContent = opponentLabel;
 }
 
 // display a transient toast message

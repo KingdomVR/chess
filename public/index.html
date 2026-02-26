@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chess</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- Loading -->
+    <div id="screen-loading" class="screen">
+      <div class="spinner"></div>
+      <p>Connecting…</p>
+    </div>
+
+    <!-- Choose Opponent -->
+    <div id="screen-choose-opponent" class="screen hidden">
+      <h1>♟ Chess</h1>
+      <p class="room-label">Room: <strong id="room-display"></strong></p>
+      <h2>Choose your opponent</h2>
+      <div class="btn-row">
+        <button id="btn-ai" class="big-btn">🤖 Play vs AI</button>
+        <button id="btn-human" class="big-btn">👤 Play vs Human</button>
+      </div>
+    </div>
+
+    <!-- Choose Time -->
+    <div id="screen-choose-time" class="screen hidden">
+      <h1>♟ Chess</h1>
+      <h2>Choose Time Control</h2>
+      <div class="time-grid">
+        <button class="time-btn" data-minutes="1">1 min<br/><small>Bullet</small></button>
+        <button class="time-btn" data-minutes="3">3 min<br/><small>Blitz</small></button>
+        <button class="time-btn" data-minutes="5">5 min<br/><small>Blitz</small></button>
+        <button class="time-btn" data-minutes="10">10 min<br/><small>Rapid</small></button>
+        <button class="time-btn" data-minutes="15">15 min<br/><small>Rapid</small></button>
+        <button class="time-btn" data-minutes="30">30 min<br/><small>Classical</small></button>
+      </div>
+    </div>
+
+    <!-- Waiting for Opponent -->
+    <div id="screen-waiting" class="screen hidden">
+      <h1>♟ Chess</h1>
+      <div class="spinner"></div>
+      <h2 id="waiting-msg">Waiting for opponent…</h2>
+      <p>Share this link with your opponent:</p>
+      <div class="link-box">
+        <span id="share-link"></span>
+        <button id="btn-copy">Copy</button>
+      </div>
+    </div>
+
+    <!-- Game -->
+    <div id="screen-game" class="screen hidden">
+      <div id="game-layout">
+        <div id="player-top">
+          <span id="name-top">Opponent</span>
+          <div id="timer-top" class="timer">--:--</div>
+        </div>
+        <div id="board-wrap">
+          <div id="board"></div>
+          <!-- Promotion chooser -->
+          <div id="promo-modal" class="hidden">
+            <p>Promote pawn to:</p>
+            <div id="promo-choices"></div>
+          </div>
+        </div>
+        <div id="player-bottom">
+          <span id="name-bottom">You</span>
+          <div id="timer-bottom" class="timer">--:--</div>
+        </div>
+        <div id="game-info">
+          <span id="game-status"></span>
+          <button id="btn-resign">Resign</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Over -->
+    <div id="screen-gameover" class="screen hidden">
+      <h1 id="result-title"></h1>
+      <p id="result-reason"></p>
+      <div id="final-board-wrap">
+        <div id="final-board"></div>
+      </div>
+      <button id="btn-new-game" class="big-btn">New Game</button>
+    </div>
+
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- chess.js for client-side move highlighting -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+  <script src="/js/client.js"></script>
+</body>
+</html>

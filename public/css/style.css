@@ -1,0 +1,265 @@
+/* ── Reset & base ──────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #1e1b18;
+  color: #f0e9dc;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#app {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 16px;
+}
+
+/* ── Screens ───────────────────────────────────────────────────────────────── */
+.screen { text-align: center; width: 100%; max-width: 520px; }
+.hidden { display: none !important; }
+
+h1 { font-size: 2.4rem; margin-bottom: 8px; }
+h2 { font-size: 1.4rem; font-weight: 400; margin-bottom: 24px; color: #c9b79c; }
+
+.room-label { margin-bottom: 24px; color: #9d8f7f; font-size: 0.95rem; }
+
+/* ── Spinner ───────────────────────────────────────────────────────────────── */
+.spinner {
+  width: 44px; height: 44px;
+  border: 5px solid #3d3630;
+  border-top-color: #769656;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 20px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Buttons ───────────────────────────────────────────────────────────────── */
+button {
+  background: #769656;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 20px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+button:hover  { background: #5c7a3e; }
+button:active { transform: scale(0.97); }
+
+.big-btn { font-size: 1.15rem; padding: 14px 32px; margin: 8px; }
+
+.btn-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+
+/* ── Time grid ─────────────────────────────────────────────────────────────── */
+.time-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  max-width: 380px;
+  margin: 0 auto;
+}
+.time-btn {
+  padding: 16px 8px;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+.time-btn small { font-size: 0.75rem; color: #c8e6a0; }
+
+/* ── Waiting / link box ────────────────────────────────────────────────────── */
+.link-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #2d2923;
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-top: 12px;
+  word-break: break-all;
+  font-size: 0.85rem;
+}
+.link-box button { flex-shrink: 0; padding: 6px 14px; font-size: 0.85rem; }
+
+/* ── Game layout ───────────────────────────────────────────────────────────── */
+#game-layout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+#player-top, #player-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 480px;
+  padding: 2px 4px;
+}
+
+/* ── Timers ────────────────────────────────────────────────────────────────── */
+.timer {
+  font-size: 1.6rem;
+  font-weight: bold;
+  font-family: 'Courier New', monospace;
+  background: #3a3530;
+  padding: 6px 14px;
+  border-radius: 6px;
+  min-width: 90px;
+  text-align: center;
+  letter-spacing: 1px;
+}
+.timer.active  { background: #4a4740; color: #fff; }
+.timer.low     { color: #f44; animation: pulse 0.5s step-end infinite; }
+@keyframes pulse { 50% { opacity: 0.5; } }
+
+/* ── Board wrapper ─────────────────────────────────────────────────────────── */
+#board-wrap, #final-board-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+/* ── Board grid ────────────────────────────────────────────────────────────── */
+#board, #final-board {
+  display: grid;
+  grid-template-columns: repeat(8, 58px);
+  grid-template-rows:    repeat(8, 58px);
+  border: 3px solid #555;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+}
+
+/* ── Squares ───────────────────────────────────────────────────────────────── */
+.sq {
+  width: 58px; height: 58px;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  cursor: pointer;
+  font-size: 44px;
+  line-height: 1;
+  user-select: none;
+}
+.sq.light { background: #f0d9b5; }
+.sq.dark  { background: #b58863; }
+.sq.sel   { background: #7fc97f !important; }
+.sq.hint::after {
+  content: '';
+  width: 22px; height: 22px;
+  background: rgba(0,0,0,0.22);
+  border-radius: 50%;
+  position: absolute;
+  pointer-events: none;
+}
+.sq.hint.occupied::after {
+  width: 100%; height: 100%;
+  background: transparent;
+  border-radius: 0;
+  border: 4px solid rgba(0,0,0,0.25);
+}
+.sq.last-from { background: #c9d43a !important; }
+.sq.last-to   { background: #c9d43a !important; }
+
+/* ── Coordinate labels ──────────────────────────────────────────────────────── */
+.coord-rank {
+  position: absolute;
+  top: 2px; left: 3px;
+  font-size: 10px; font-weight: 700; line-height: 1;
+  pointer-events: none;
+}
+.coord-file {
+  position: absolute;
+  bottom: 2px; right: 3px;
+  font-size: 10px; font-weight: 700; line-height: 1;
+  pointer-events: none;
+}
+.sq.light .coord-rank, .sq.light .coord-file { color: #b58863; }
+.sq.dark  .coord-rank, .sq.dark  .coord-file { color: #f0d9b5; }
+
+/* ── Chess pieces (Unicode, styled) ────────────────────────────────────────── */
+.piece {
+  font-size: 46px;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%; height: 100%;
+}
+.piece-w {
+  color: #fff;
+  text-shadow:
+    0 0 4px #000,
+    0 0 2px #000,
+    1px 1px 0 #333,
+    -1px -1px 0 #333,
+    1px -1px 0 #333,
+    -1px 1px 0 #333;
+}
+.piece-b {
+  color: #1c1c1c;
+  text-shadow: 0 1px 2px rgba(255,255,255,0.4);
+}
+
+/* ── Promotion modal ───────────────────────────────────────────────────────── */
+#promo-modal {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.82);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  border-radius: 4px;
+}
+#promo-modal p { margin-bottom: 12px; font-size: 1.1rem; }
+#promo-choices { display: flex; gap: 10px; }
+.promo-piece {
+  font-size: 56px;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.1);
+  transition: background 0.15s;
+}
+.promo-piece:hover { background: rgba(255,255,255,0.3); }
+
+/* ── Game info row ─────────────────────────────────────────────────────────── */
+#game-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 4px;
+}
+#game-status { font-size: 0.95rem; color: #a89880; flex: 1; text-align: left; }
+#btn-resign { padding: 7px 16px; font-size: 0.85rem; background: #7a3030; }
+#btn-resign:hover { background: #9a3535; }
+
+/* ── Game-over screen ──────────────────────────────────────────────────────── */
+#result-title  { font-size: 2.5rem; margin-bottom: 10px; }
+#result-reason { font-size: 1.1rem; color: #a89880; margin-bottom: 20px; }
+#final-board-wrap { margin: 0 auto 24px; }
+
+/* ── Responsive ────────────────────────────────────────────────────────────── */
+@media (max-width: 520px) {
+  #board, #final-board {
+    grid-template-columns: repeat(8, calc((100vw - 40px) / 8));
+    grid-template-rows:    repeat(8, calc((100vw - 40px) / 8));
+  }
+  .sq {
+    width:  calc((100vw - 40px) / 8);
+    height: calc((100vw - 40px) / 8);
+    font-size: calc((100vw - 40px) / 8 * 0.75);
+  }
+  .piece { font-size: calc((100vw - 40px) / 8 * 0.78); }
+}

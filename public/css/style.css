@@ -349,3 +349,12 @@ button:active { transform: scale(0.97); }
   font-weight: 700;
 }
 
+/* Leaderboard table: ensure header cells align with body cells */
+#board-table th,
+#board-table td {
+  padding: 8px 12px;
+  text-align: left;
+}
+
+#board-table th { font-weight: 700; }
+

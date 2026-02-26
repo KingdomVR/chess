@@ -40,28 +40,31 @@
       </div>
       <div id="ai-config" class="hidden" style="margin-top:12px;">
         <h3>AI settings</h3>
-        <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
-          <fieldset style="border:none;padding:0;margin:0">
-            <legend>Time</legend>
-            <label><input type="radio" name="ai-time" value="1"> 1</label>
-            <label><input type="radio" name="ai-time" value="3"> 3</label>
-            <label><input type="radio" name="ai-time" value="5" checked> 5</label>
-            <label><input type="radio" name="ai-time" value="10"> 10</label>
-            <label><input type="radio" name="ai-time" value="15"> 15</label>
-            <label><input type="radio" name="ai-time" value="30"> 30</label>
-          </fieldset>
-
-          <fieldset style="border:none;padding:0;margin:0">
-            <legend>Strength</legend>
-            <label><input type="radio" name="ai-level" id="ai-level-400" value="400"> ≈400</label>
-            <label><input type="radio" name="ai-level" id="ai-level-900" value="900" checked> ≈900</label>
-            <label><input type="radio" name="ai-level" id="ai-level-1300" value="1300"> ≈1300</label>
-          </fieldset>
-
-          <div style="display:flex;align-items:center;gap:8px;">
-            <button id="ai-start" class="big-btn">Start vs AI</button>
-            <button id="ai-cancel" class="big-btn">Cancel</button>
+        <div class="ai-top">
+          <div class="ai-time-col">
+            <fieldset>
+              <legend>⏱️ Time</legend>
+              <label><input type="radio" name="ai-time" value="1"> 1</label>
+              <label><input type="radio" name="ai-time" value="3"> 3</label>
+              <label><input type="radio" name="ai-time" value="5" checked> 5</label>
+              <label><input type="radio" name="ai-time" value="10"> 10</label>
+              <label><input type="radio" name="ai-time" value="15"> 15</label>
+              <label><input type="radio" name="ai-time" value="30"> 30</label>
+            </fieldset>
           </div>
+
+          <div class="ai-level-col">
+            <fieldset>
+              <legend>🧠 Strength</legend>
+              <label><input type="radio" name="ai-level" id="ai-level-400" value="400"> ≈400</label>
+              <label><input type="radio" name="ai-level" id="ai-level-900" value="900" checked> ≈900</label>
+              <label><input type="radio" name="ai-level" id="ai-level-1300" value="1300"> ≈1300</label>
+            </fieldset>
+          </div>
+        </div>
+        <div class="ai-controls">
+          <button id="ai-start" class="big-btn">▶️ Start vs AI</button>
+          <button id="ai-cancel" class="big-btn">✖️ Cancel</button>
         </div>
       </div>
     </div>

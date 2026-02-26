@@ -62,8 +62,16 @@ function bindUI() {
   document.querySelectorAll('.time-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const minutes = Number(btn.dataset.minutes);
-      // Human flow: second player presses a time button to start
-      socket.emit('choose_time', { minutes });
+      // If this is an AI flow, include the selected AI level so server gets the intended rating.
+      if (state.pendingAi) {
+        const level = state.chosenAiLevel || (document.querySelector('input[name="ai-level"]:checked') ? Number(document.querySelector('input[name="ai-level"]:checked').value) : 900);
+        console.log('[client] emitting choose_time (AI)', { minutes, level, pendingAi: state.pendingAi });
+        socket.emit('choose_time', { minutes, level });
+      } else {
+        // Human flow: second player presses a time button to start
+        console.log('[client] emitting choose_time (human)', { minutes });
+        socket.emit('choose_time', { minutes });
+      }
     });
   });
 
@@ -76,7 +84,10 @@ function bindUI() {
     const minutes = timeEl ? Number(timeEl.value) : 5;
     const level = lvlEl ? Number(lvlEl.value) : 900;
     state.chosenAiLevel = level;
+    console.log('[client] ai-start emitting choose_time', { minutes, level });
     socket.emit('choose_time', { minutes, level });
+    // clear pending flag once we've started the AI game
+    state.pendingAi = false;
   });
   if (aiCancel) aiCancel.addEventListener('click', () => {
     state.pendingAi = false;
@@ -552,8 +563,12 @@ function setPlayerNames(data) {
   const topEl  = document.getElementById('name-top');
   const botEl  = document.getElementById('name-bottom');
   const oppColor = state.myColor === 'w' ? 'b' : 'w';
-
-  const oppLabel = data.mode === 'ai' && oppColor === 'b' ? 'AI' : 'Opponent';
+  // Show AI label including elo when applicable
+  let oppLabel = 'Opponent';
+  if (data.mode === 'ai') {
+    const elo = data.aiLevel || data.aiLevel === 0 ? data.aiLevel : (state.chosenAiLevel || 900);
+    oppLabel = `AI (${elo})`;
+  }
 
   if (state.myColor === 'w') {
     botEl.textContent = 'You (White)';

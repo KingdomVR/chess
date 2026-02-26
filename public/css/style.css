@@ -106,8 +106,8 @@ button:active { transform: scale(0.97); }
 /* ── Timers ────────────────────────────────────────────────────────────────── */
 .timer {
   font-size: 1.6rem;
-  font-weight: bold;
-  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  font-family: Inter, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   background: #3a3530;
   padding: 6px 14px;
   border-radius: 6px;
@@ -281,3 +281,30 @@ button:active { transform: scale(0.97); }
 #ai-config input[type="radio"] { margin-right: 8px; }
 #ai-config .big-btn { margin: 6px 0; }
 #ai-config label.selected { background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 6px; }
+
+/* Layout: two columns top row, buttons centered beneath */
+.ai-top { display:flex; gap:24px; justify-content:space-between; align-items:flex-start; max-width:520px; margin:0 auto 12px; }
+.ai-time-col, .ai-level-col { width:48%; }
+.ai-controls { display:flex; gap:12px; justify-content:center; }
+
+/* nicer radio visuals */
+#ai-config input[type="radio"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.25);
+  background: transparent;
+  vertical-align: middle;
+  margin-right: 8px;
+  position: relative;
+}
+#ai-config input[type="radio"]:checked {
+  background: linear-gradient(180deg,#8fb86e,#5c7a3e);
+  border-color: #5c7a3e;
+  box-shadow: 0 0 0 4px rgba(92,122,62,0.12) inset;
+}
+#ai-config label { font-size: 0.98rem; color: #eae2cf; }
+#ai-config fieldset { background: rgba(0,0,0,0.12); border-radius: 8px; padding: 10px 12px; }
+#ai-config legend { padding: 0 6px; }

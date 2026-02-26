@@ -324,6 +324,7 @@ function startGame(room) {
   io.to(room.id).emit('game_start', {
     fen: room.game.fen(),
     mode: room.mode,
+    aiLevel: room.aiLevel || null,
     timers: Object.assign({}, room.timers),
     players: room.players,
     currentTurn: 'w',
@@ -397,8 +398,9 @@ io.on('connection', (socket) => {
     const level = (arguments[0] && arguments[0].level) || null;
     console.log(`[choose_opponent] ${socket.id} in ${room.id} -> ${type}${level ? ' level=' + level : ''}`);
     room.mode = type;
-    if (type === 'ai') {
-      room.aiLevel = level || room.aiLevel || 900;
+    // Only set aiLevel here if an explicit level was supplied; otherwise wait for choose_time
+    if (type === 'ai' && level) {
+      room.aiLevel = level;
     }
     if (type === 'ai') {
       room.status = 'choosing_time';
@@ -410,27 +412,30 @@ io.on('connection', (socket) => {
   });
 
   // ── choose_time ────────────────────────────────────────────────────────────
-  socket.on('choose_time', ({ minutes }) => {
-    // support optional level parameter when choosing time
-    const raw = arguments[0] || {};
+  socket.on('choose_time', (payload) => {
+    // payload may contain { minutes, level }
+    const raw = payload || {};
+    const minutes = Number(raw.minutes);
     const level = raw.level;
     const room = getRoomForSocket(socket.id);
     if (!room || room.status !== 'choosing_time') return;
-    if (typeof minutes !== 'number' || minutes <= 0) return;
+    if (!Number.isFinite(minutes) || minutes <= 0) return;
 
     // Only the white player can set time for AI mode;
     // only the black player sets it for human-vs-human
     if (room.mode === 'ai' && room.players.white !== socket.id) return;
     if (room.mode === 'human' && room.players.black !== socket.id) return;
 
-    console.log(`[choose_time] ${socket.id} in ${room.id} -> ${minutes} min${level ? ' level=' + level : ''}`);
+    console.log('[choose_time] raw payload received from', socket.id, raw);
+    console.log(`[choose_time] ${socket.id} in ${room.id} -> ${minutes} min level=${level}`);
     const seconds = minutes * 60;
     room.initialTime = seconds;
     room.timers = { w: seconds, b: seconds };
 
     if (room.mode === 'ai') {
       room.players.black = 'ai';
-      if (level) room.aiLevel = level;
+      room.aiLevel = level || room.aiLevel || 900;
+      console.log(`[choose_time] room.aiLevel now set to ${room.aiLevel} (level param=${level}, previous=${room.aiLevel})`);
     }
     startGame(room);
   });

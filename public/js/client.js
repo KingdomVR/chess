@@ -30,8 +30,10 @@ const socket = io();
 window.addEventListener('DOMContentLoaded', () => {
   const params = new URLSearchParams(window.location.search);
   state.roomId = (params.get('room') || 'default').trim();
-  document.getElementById('room-display').textContent = state.roomId;
-  document.getElementById('share-link').textContent  = window.location.href;
+  const roomDisplayEl = document.getElementById('room-display');
+  if (roomDisplayEl) roomDisplayEl.textContent = state.roomId;
+  const shareLinkEl = document.getElementById('share-link');
+  if (shareLinkEl) shareLinkEl.textContent = window.location.href;
 
   bindUI();
 
@@ -377,7 +379,7 @@ function renderBoard(boardId, lastMove) {
         pieceEl.className = 'piece piece-' + piece.color;
 
         const img = document.createElement('img');
-        img.src = `/img/${piece.color}${piece.type}.svg`;
+        img.src = `/img/${piece.color}${piece.type.toUpperCase()}.png`;
         img.alt = piece.color + piece.type;
         img.addEventListener('error', () => {
           pieceEl.textContent = PIECE_UNICODE[piece.color + piece.type] || '?';
@@ -466,7 +468,7 @@ function showPromoModal() {
     const el = document.createElement('div');
     el.className = 'promo-piece';
     const img = document.createElement('img');
-    img.src = `/img/${col}${type}.svg`;
+    img.src = `/img/${col}${type.toUpperCase()}.png`;
     img.alt = col + type;
     img.addEventListener('error', () => {
       el.textContent = PIECE_UNICODE[col + type];

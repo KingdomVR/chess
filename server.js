@@ -417,7 +417,7 @@ io.on('connection', (socket) => {
       room.players.black = socket.id;
       socket.join(roomId);
       room.status = 'authenticating_black';
-      io.to(room.players.white).emit('opponent_joined');
+      // ask black to authenticate; we'll notify white with opponent info after auth
       socket.emit('request_pin', { role: 'black' });
       return;
     }
@@ -488,8 +488,11 @@ io.on('connection', (socket) => {
       if (role === 'black' && room.status === 'authenticating_black') {
         // both players authenticated — proceed to time selection
         room.status = 'choosing_time';
-        // notify white that opponent is ready
-        io.to(room.players.white).emit('opponent_joined');
+        // notify white with opponent info and prompt both players to choose time
+        const oppInfo = { username: u.username, chess_points: u.chess_points || 0 };
+        // notify white with opponent info (stay on waiting screen while black picks time)
+        io.to(room.players.white).emit('opponent_info', { opponent: oppInfo, roomId: room.id });
+        // prompt black to choose time
         io.to(room.players.black).emit('choose_time', { role: 'black', roomId: room.id });
       }
     } catch (e) {

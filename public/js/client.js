@@ -220,12 +220,23 @@ socket.on('choose_opponent', () => {
   showScreen('screen-choose-opponent');
 });
 
-socket.on('choose_time', ({ role }) => {
+socket.on('choose_time', (payload) => {
+  const role = payload && payload.role;
+  const opponent = payload && payload.opponent;
   if (role === 'black') state.myColor = 'b';
-  console.log('[client] choose_time role=', role);
+  console.log('[client] choose_time', payload);
   // If we're selecting time as white and a pending AI flow exists, show AI radio selectors
   const aiDiv = document.getElementById('ai-config');
   const timeGrid = document.querySelector('.time-grid');
+  const oppInfoEl = document.getElementById('opponent-info');
+  if (oppInfoEl) {
+    if (opponent && opponent.username) {
+      oppInfoEl.textContent = `${opponent.username} — ${opponent.chess_points || 0} pts`;
+      oppInfoEl.classList.remove('hidden');
+    } else {
+      oppInfoEl.classList.add('hidden');
+    }
+  }
   if (state.pendingAi && role === 'white') {
     if (aiDiv) aiDiv.classList.remove('hidden');
     if (timeGrid) timeGrid.classList.add('hidden');
@@ -252,6 +263,18 @@ socket.on('opponent_joined', () => {
   document.getElementById('waiting-msg').textContent =
     'Opponent joined — waiting for time selection…';
   console.log('[client] opponent_joined');
+});
+
+socket.on('opponent_info', (payload) => {
+  const info = payload && payload.opponent;
+  const msgEl = document.getElementById('waiting-msg');
+  if (info && info.username) {
+    if (msgEl) msgEl.textContent = `${info.username} — ${info.chess_points || 0} pts is selecting time…`;
+  } else {
+    if (msgEl) msgEl.textContent = 'Opponent joined — waiting for time selection…';
+  }
+  showScreen('screen-waiting');
+  console.log('[client] opponent_info', info);
 });
 
 socket.on('opponent_left', () => {

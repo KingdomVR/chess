@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Leaderboard — Chess</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="app" style="padding:20px; max-width:900px; margin:0 auto;">
+    <h1>Chess Leaderboard</h1>
+    <div style="display:flex; gap:8px; align-items:center; margin-bottom:12px;">
+      <div style="font-weight:600">Top 20 players — highest points first</div>
+      <button id="refresh" class="big-btn">Refresh</button>
+      <span id="loading" style="margin-left:8px; color:#c9b79c; display:none;">Loading…</span>
+    </div>
+
+    <table id="board-table" style="width:100%; border-collapse:collapse; background:#fff; color:#111; border-radius:6px; overflow:hidden;">
+      <thead style="background:#f4f2ee; text-align:left;">
+        <tr>
+          <th style="padding:8px 12px; width:48px">#</th>
+          <th style="padding:8px 12px">Username</th>
+          <th style="padding:8px 12px; width:120px">Points</th>
+        </tr>
+      </thead>
+      <tbody id="board-body"></tbody>
+    </table>
+
+    <p style="margin-top:14px; color:#9d8f7f;">Data provided by the auth server.</p>
+  </div>
+
+  <script src="/js/leaderboard.js"></script>
+</body>
+</html>

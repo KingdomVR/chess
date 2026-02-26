@@ -16,6 +16,23 @@ const USER_API_KEY = process.env.USER_API_KEY || 'supersecret';
 
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Proxy leaderboard requests to the user API (server holds API key)
+app.get('/api/leaderboard/chess', async (req, res) => {
+  try {
+    const limit = req.query.limit ? `limit=${encodeURIComponent(req.query.limit)}` : '';
+    const order = req.query.order ? `order=${encodeURIComponent(req.query.order)}` : '';
+    const qs = [limit, order].filter(Boolean).join('&');
+    const url = `${USER_API_BASE.replace(/\/$/, '')}/leaderboard/chess${qs ? ('?' + qs) : ''}`;
+    const r = await fetch(url, { headers: { 'X-API-Key': USER_API_KEY } });
+    if (!r.ok) return res.status(r.status).send(await r.text());
+    const data = await r.json();
+    res.json(data);
+  } catch (e) {
+    console.error('[proxy] leaderboard error', e);
+    res.status(500).json({ error: 'proxy_error' });
+  }
+});
+
 // rooms: Map<roomId, RoomState>
 const rooms = new Map();
 

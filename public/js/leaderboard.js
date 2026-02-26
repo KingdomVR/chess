@@ -1,6 +1,5 @@
 (function(){
   const tableBody = document.getElementById('board-body');
-  const refresh = document.getElementById('refresh');
   const loading = document.getElementById('loading');
 
   // fixed: top 20, descending
@@ -30,7 +29,8 @@
     }
   }
 
-  refresh.addEventListener('click', load);
   // initial
   load();
+  // auto-refresh every 20 seconds
+  setInterval(load, 20000);
 })();

@@ -46,32 +46,59 @@ function showScreen(id) {
 
 // ── UI event bindings ─────────────────────────────────────────────────────────
 function bindUI() {
-  document.getElementById('btn-ai').addEventListener('click', () => {
+  // Opponent selection: single AI button; actual AI level chosen on the time screen
+  const btnAi = document.getElementById('btn-ai');
+  if (btnAi) btnAi.addEventListener('click', () => {
+    state.pendingAi = true;
     socket.emit('choose_opponent', { type: 'ai' });
   });
-  document.getElementById('btn-human').addEventListener('click', () => {
+
+  const btnHuman = document.getElementById('btn-human');
+  if (btnHuman) btnHuman.addEventListener('click', () => {
+    state.pendingAi = false;
     socket.emit('choose_opponent', { type: 'human' });
   });
 
   document.querySelectorAll('.time-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      socket.emit('choose_time', { minutes: Number(btn.dataset.minutes) });
+      const minutes = Number(btn.dataset.minutes);
+      // Human flow: second player presses a time button to start
+      socket.emit('choose_time', { minutes });
     });
   });
 
-  document.getElementById('btn-copy').addEventListener('click', () => {
+  // AI start/cancel handlers (on choose-time screen)
+  const aiStart = document.getElementById('ai-start');
+  const aiCancel = document.getElementById('ai-cancel');
+  if (aiStart) aiStart.addEventListener('click', () => {
+    const timeEl = document.querySelector('input[name="ai-time"]:checked');
+    const lvlEl = document.querySelector('input[name="ai-level"]:checked');
+    const minutes = timeEl ? Number(timeEl.value) : 5;
+    const level = lvlEl ? Number(lvlEl.value) : 900;
+    state.chosenAiLevel = level;
+    socket.emit('choose_time', { minutes, level });
+  });
+  if (aiCancel) aiCancel.addEventListener('click', () => {
+    state.pendingAi = false;
+    // go back to opponent selection
+    showScreen('screen-choose-opponent');
+  });
+
+  const btnCopy = document.getElementById('btn-copy');
+  if (btnCopy) btnCopy.addEventListener('click', () => {
     navigator.clipboard.writeText(window.location.href).then(() => {
-      const btn = document.getElementById('btn-copy');
-      btn.textContent = '✓ Copied';
-      setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+      btnCopy.textContent = '✓ Copied';
+      setTimeout(() => { btnCopy.textContent = 'Copy'; }, 1500);
     });
   });
 
-  document.getElementById('btn-resign').addEventListener('click', () => {
+  const btnResign = document.getElementById('btn-resign');
+  if (btnResign) btnResign.addEventListener('click', () => {
     if (confirm('Resign this game?')) socket.emit('resign');
   });
 
-  document.getElementById('btn-new-game').addEventListener('click', () => {
+  const btnNew = document.getElementById('btn-new-game');
+  if (btnNew) btnNew.addEventListener('click', () => {
     window.location.reload();
   });
 }
@@ -90,6 +117,23 @@ socket.on('choose_opponent', () => {
 socket.on('choose_time', ({ role }) => {
   if (role === 'black') state.myColor = 'b';
   console.log('[client] choose_time role=', role);
+  // If we're selecting time as white and a pending AI flow exists, show AI radio selectors
+  const aiDiv = document.getElementById('ai-config');
+  const timeGrid = document.querySelector('.time-grid');
+  if (state.pendingAi && role === 'white') {
+    if (aiDiv) aiDiv.classList.remove('hidden');
+    if (timeGrid) timeGrid.classList.add('hidden');
+    // default selection
+    state.chosenAiLevel = state.chosenAiLevel || 900;
+    // set radio defaults
+    const lvl = document.querySelector('input[name="ai-level"][value="' + state.chosenAiLevel + '"]');
+    if (lvl) lvl.checked = true;
+    const time = document.querySelector('input[name="ai-time"][value="5"]');
+    if (time) time.checked = true;
+  } else {
+    if (aiDiv) aiDiv.classList.add('hidden');
+    if (timeGrid) timeGrid.classList.remove('hidden');
+  }
   showScreen('screen-choose-time');
 });
 
@@ -518,4 +562,14 @@ function setPlayerNames(data) {
     botEl.textContent = 'You (Black)';
     topEl.textContent = oppLabel + ' (White)';
   }
+}
+
+function highlightAiLevel(level) {
+  ['400','900','1300'].forEach(l => {
+    const el = document.getElementById('ai-level-' + l);
+    if (!el) return;
+    // For radio inputs, toggle a 'selected' class on the parent label if present
+    const label = el.closest('label') || el;
+    label.classList.toggle('selected', String(level) === l);
+  });
 }

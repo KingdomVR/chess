@@ -263,3 +263,21 @@ button:active { transform: scale(0.97); }
   }
   .piece { font-size: calc((100vw - 40px) / 8 * 0.78); }
 }
+
+/* ── AI config (radio + start) ─────────────────────────────────────────────── */
+#ai-config {
+  text-align: center;
+  margin-top: 16px;
+}
+#ai-config > h3 { margin-bottom: 8px; color: #c9b79c; }
+#ai-config fieldset {
+  display: inline-block;
+  vertical-align: top;
+  margin: 0 12px;
+  padding: 6px 10px;
+}
+#ai-config legend { font-weight: 600; margin-bottom: 6px; color: #c9b79c; }
+#ai-config label { display: block; margin: 6px 0; cursor: pointer; }
+#ai-config input[type="radio"] { margin-right: 8px; }
+#ai-config .big-btn { margin: 6px 0; }
+#ai-config label.selected { background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 6px; }

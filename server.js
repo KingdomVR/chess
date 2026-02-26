@@ -183,6 +183,8 @@ function minimax(chess, depth, alpha, beta, maximizing) {
 }
 
 function getBestMove(chess) {
+  // Fast 1-ply selector: evaluate resulting position after each legal move
+  // This avoids deep recursion and keeps compute time predictable.
   const moves = chess.moves();
   if (moves.length === 0) return null;
 
@@ -192,18 +194,83 @@ function getBestMove(chess) {
     [moves[i], moves[j]] = [moves[j], moves[i]];
   }
 
-  // AI is black → minimise score
   let bestMove = null;
+  // AI is black: choose move that minimises the board evaluation
   let bestVal = Infinity;
   for (const move of moves) {
     chess.move(move);
-    const val = minimax(chess, 2, -Infinity, Infinity, true);
+    const val = evaluateBoard(chess);
     chess.undo();
     if (val < bestVal) {
       bestVal = val;
       bestMove = move;
     }
   }
+  return bestMove;
+}
+
+// Choose best move for a given AI level within a compute budget (ms).
+function getBestMoveForLevel(chess, level, timeBudgetMs) {
+  const moves = chess.moves();
+  if (moves.length === 0) return null;
+
+  const start = Date.now();
+
+  // Level 400: essentially random play (fast)
+  if (level <= 500) {
+    return moves[Math.floor(Math.random() * moves.length)];
+  }
+
+  // Level ~900: 1-ply evaluation (fast, slightly stronger than random)
+  if (level <= 1000) {
+    let best = null;
+    let bestVal = Infinity; // AI is black -> minimize
+    for (const move of moves) {
+      chess.move(move);
+      const val = evaluateBoard(chess);
+      chess.undo();
+      if (val < bestVal) {
+        bestVal = val;
+        best = move;
+      }
+      if (Date.now() - start > timeBudgetMs) break;
+    }
+    return best || moves[0];
+  }
+
+  // Level 1300+: attempt shallow alpha-beta search with time budget
+  let bestMove = moves[0];
+  // Seed with 1-ply evaluation
+  let bestVal = Infinity;
+  for (const m of moves) {
+    chess.move(m);
+    const v = evaluateBoard(chess);
+    chess.undo();
+    if (v < bestVal) {
+      bestVal = v;
+      bestMove = m;
+    }
+  }
+
+  // Iterative deepen to depth 2..3 within time budget
+  const maxDepth = 3;
+  for (let depth = 2; depth <= maxDepth; depth++) {
+    if (Date.now() - start > timeBudgetMs) break;
+    let improved = false;
+    for (const move of moves) {
+      if (Date.now() - start > timeBudgetMs) break;
+      chess.move(move);
+      const score = minimax(chess, depth - 1, -Infinity, Infinity, true);
+      chess.undo();
+      if (score < bestVal) {
+        bestVal = score;
+        bestMove = move;
+        improved = true;
+      }
+    }
+    if (!improved) break;
+  }
+
   return bestMove;
 }
 
@@ -326,9 +393,13 @@ io.on('connection', (socket) => {
     const room = getRoomForSocket(socket.id);
     if (!room || room.status !== 'choosing_opponent') return;
     if (room.players.white !== socket.id) return;
-
-    console.log(`[choose_opponent] ${socket.id} in ${room.id} -> ${type}`);
+    // Accept optional AI level when choosing opponent
+    const level = (arguments[0] && arguments[0].level) || null;
+    console.log(`[choose_opponent] ${socket.id} in ${room.id} -> ${type}${level ? ' level=' + level : ''}`);
     room.mode = type;
+    if (type === 'ai') {
+      room.aiLevel = level || room.aiLevel || 900;
+    }
     if (type === 'ai') {
       room.status = 'choosing_time';
       socket.emit('choose_time', { role: 'white', roomId: room.id });
@@ -340,6 +411,9 @@ io.on('connection', (socket) => {
 
   // ── choose_time ────────────────────────────────────────────────────────────
   socket.on('choose_time', ({ minutes }) => {
+    // support optional level parameter when choosing time
+    const raw = arguments[0] || {};
+    const level = raw.level;
     const room = getRoomForSocket(socket.id);
     if (!room || room.status !== 'choosing_time') return;
     if (typeof minutes !== 'number' || minutes <= 0) return;
@@ -349,13 +423,14 @@ io.on('connection', (socket) => {
     if (room.mode === 'ai' && room.players.white !== socket.id) return;
     if (room.mode === 'human' && room.players.black !== socket.id) return;
 
-    console.log(`[choose_time] ${socket.id} in ${room.id} -> ${minutes} min`);
+    console.log(`[choose_time] ${socket.id} in ${room.id} -> ${minutes} min${level ? ' level=' + level : ''}`);
     const seconds = minutes * 60;
     room.initialTime = seconds;
     room.timers = { w: seconds, b: seconds };
 
     if (room.mode === 'ai') {
       room.players.black = 'ai';
+      if (level) room.aiLevel = level;
     }
     startGame(room);
   });
@@ -477,19 +552,35 @@ function scheduleAiMove(room) {
 
   try {
     const chessClone = new Chess(room.game.fen());
+
+    // Compute budget depends on level: ensure total (compute+delay) <= 5000ms
+    const level = room.aiLevel || 900;
+    let computeBudgetMs = 250; // default
+    if (level <= 500) computeBudgetMs = 50;
+    else if (level <= 1000) computeBudgetMs = 300;
+    else computeBudgetMs = 1500;
+
     const computeStart = Date.now();
-    const aiMove = getBestMove(chessClone);
+    const aiMove = getBestMoveForLevel(chessClone, level, computeBudgetMs);
     const computeMs = Date.now() - computeStart;
     if (!aiMove) return;
 
-    const delay = 2000 + Math.floor(Math.random() * 3000); // 2000..4999 ms
-    console.log(`[ai] room=${room.id} computed move=${aiMove} in ${computeMs}ms; responding after ${delay}ms`);
+    // Desired artificial delay in 2000..5000, but cap so compute+delay <= 5000
+    const desired = 2000 + Math.floor(Math.random() * 3000);
+    const maxAllowed = Math.max(0, 5000 - computeMs);
+    const delay = Math.min(desired, maxAllowed);
+    console.log(`[ai] room=${room.id} level=${level} computed move=${aiMove} in ${computeMs}ms; responding after ${delay}ms`);
+
+    // Deduct both compute and artificial delay from AI clock immediately so all AI time counts
+    const totalDeductSec = (computeMs + delay) / 1000;
+    room.timers.b = Math.max(0, room.timers.b - totalDeductSec);
+    // Re-schedule timeout based on new timers
+    clearRoomTimeout(room);
+    room.turnStartTime = Date.now();
+    startTimeout(room);
 
     setTimeout(() => {
       if (room.status !== 'playing' || room.game.turn() !== 'b') return;
-
-      // Deduct only compute time from AI clock (not the artificial wait)
-      room.timers.b = Math.max(0, room.timers.b - (computeMs / 1000));
 
       room.game.move(aiMove);
       clearRoomTimeout(room);

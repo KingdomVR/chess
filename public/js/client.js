@@ -737,8 +737,10 @@ function showToast(msg, ms = 3000) {
   setTimeout(() => { t.remove(); }, ms);
 }
 
-socket.on('points_update', ({ chess_points }) => {
-  console.log('[client] points_update', chess_points);
+socket.on('points_update', ({ chess_points, delta }) => {
+  console.log('[client] points_update', chess_points, 'delta=', delta);
+  const oldPoints = typeof state.chess_points === 'number' ? state.chess_points : 0;
+  const actualDelta = (typeof delta === 'number') ? delta : (chess_points - oldPoints);
   state.chess_points = chess_points;
   // update name area
   // re-run setPlayerNames with last-known game data if available
@@ -748,7 +750,13 @@ socket.on('points_update', ({ chess_points }) => {
     const roleName = state.myColor === 'w' ? 'White' : 'Black';
     botEl.textContent = `${state.username} (${roleName}) — ${state.chess_points} pts`;
   }
-  showToast('You earned +1 chess point! New score: ' + chess_points, 4000);
+  if (actualDelta > 0) {
+    showToast('You earned +' + actualDelta + ' chess point' + (actualDelta > 1 ? 's' : '') + '! New score: ' + chess_points, 4000);
+  } else if (actualDelta < 0) {
+    showToast('Better luck next time — ' + actualDelta + ' point. New score: ' + chess_points, 4000);
+  } else {
+    showToast('Your score: ' + chess_points, 3000);
+  }
 });
 
 function highlightAiLevel(level) {

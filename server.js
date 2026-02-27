@@ -351,14 +351,16 @@ function endGame(room, winner, reason) {
       const loserInfo = room.playerInfo[loserRole];
       // Award +2 to winner if human (not AI)
       if (winnerInfo && winnerInfo.username) {
-        const newWinnerPoints = (winnerInfo.chess_points || 0) + 2;
+        const oldWinnerPoints = winnerInfo.chess_points || 0;
+        const deltaWinner = 2;
+        const newWinnerPoints = oldWinnerPoints + deltaWinner;
         winnerInfo.chess_points = newWinnerPoints;
         (async () => {
           try {
             await updateUserPoints(winnerInfo.username, newWinnerPoints);
             const sockId = room.players[winnerRole];
             if (sockId && sockId !== 'ai') {
-              io.to(sockId).emit('points_update', { chess_points: newWinnerPoints });
+              io.to(sockId).emit('points_update', { chess_points: newWinnerPoints, delta: deltaWinner });
             }
           } catch (e) {
             console.error('[points] failed to update points for', winnerInfo.username, e);
@@ -369,14 +371,17 @@ function endGame(room, winner, reason) {
       if (loserInfo && loserInfo.username) {
         const currentLoserPoints = loserInfo.chess_points || 0;
         if (currentLoserPoints > 0) {
-          const newLoserPoints = Math.max(0, currentLoserPoints - 1);
+          const oldLoserPoints = currentLoserPoints;
+          const tentativeNew = oldLoserPoints - 1;
+          const newLoserPoints = Math.max(0, tentativeNew);
+          const deltaLoser = newLoserPoints - oldLoserPoints; // typically -1
           loserInfo.chess_points = newLoserPoints;
           (async () => {
             try {
               await updateUserPoints(loserInfo.username, newLoserPoints);
               const sockId = room.players[loserRole];
               if (sockId && sockId !== 'ai') {
-                io.to(sockId).emit('points_update', { chess_points: newLoserPoints });
+                io.to(sockId).emit('points_update', { chess_points: newLoserPoints, delta: deltaLoser });
               }
             } catch (e) {
               console.error('[points] failed to update points for', loserInfo.username, e);
@@ -390,14 +395,16 @@ function endGame(room, winner, reason) {
       ['white', 'black'].forEach((role) => {
         const info = room.playerInfo[role];
         if (info && info.username) {
-          const newPoints = (info.chess_points || 0) + 1;
+          const oldPoints = info.chess_points || 0;
+          const delta = 1;
+          const newPoints = oldPoints + delta;
           info.chess_points = newPoints;
           (async () => {
             try {
               await updateUserPoints(info.username, newPoints);
               const sockId = room.players[role];
               if (sockId && sockId !== 'ai') {
-                io.to(sockId).emit('points_update', { chess_points: newPoints });
+                io.to(sockId).emit('points_update', { chess_points: newPoints, delta });
               }
             } catch (e) {
               console.error('[points] failed to update points for', info.username, e);

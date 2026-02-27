@@ -338,29 +338,66 @@ function endGame(room, winner, reason) {
   // Update points for winner if the winner is a human player
   try {
     if (winner && room.playerInfo) {
-      let role = null;
-      if (winner === 'w') role = 'white';
-      if (winner === 'b') role = 'black';
-      const info = room.playerInfo[role];
-      // Only award points for actual users (not AI)
-      if (info && info.username) {
-        // increment local copy and persist via PATCH
-        const newPoints = (info.chess_points || 0) + 1;
-        info.chess_points = newPoints;
-        // fire-and-forget update
+      const winnerRole = winner === 'w' ? 'white' : 'black';
+      const loserRole = winnerRole === 'white' ? 'black' : 'white';
+      const winnerInfo = room.playerInfo[winnerRole];
+      const loserInfo = room.playerInfo[loserRole];
+      // Award +2 to winner if human (not AI)
+      if (winnerInfo && winnerInfo.username) {
+        const newWinnerPoints = (winnerInfo.chess_points || 0) + 2;
+        winnerInfo.chess_points = newWinnerPoints;
         (async () => {
           try {
-            await updateUserPoints(info.username, newPoints);
-            // notify the winner socket of their new score if they're connected
-            const sockId = room.players[role];
+            await updateUserPoints(winnerInfo.username, newWinnerPoints);
+            const sockId = room.players[winnerRole];
             if (sockId && sockId !== 'ai') {
-              io.to(sockId).emit('points_update', { chess_points: newPoints });
+              io.to(sockId).emit('points_update', { chess_points: newWinnerPoints });
             }
           } catch (e) {
-            console.error('[points] failed to update points for', info.username, e);
+            console.error('[points] failed to update points for', winnerInfo.username, e);
           }
         })();
       }
+      // Subtract -1 from loser if human, but never reduce below 0
+      if (loserInfo && loserInfo.username) {
+        const currentLoserPoints = loserInfo.chess_points || 0;
+        if (currentLoserPoints > 0) {
+          const newLoserPoints = Math.max(0, currentLoserPoints - 1);
+          loserInfo.chess_points = newLoserPoints;
+          (async () => {
+            try {
+              await updateUserPoints(loserInfo.username, newLoserPoints);
+              const sockId = room.players[loserRole];
+              if (sockId && sockId !== 'ai') {
+                io.to(sockId).emit('points_update', { chess_points: newLoserPoints });
+              }
+            } catch (e) {
+              console.error('[points] failed to update points for', loserInfo.username, e);
+            }
+          })();
+        }
+      }
+    }
+    else if (!winner && room.playerInfo) {
+      // Draw: award +1 to both human players (skip AIs)
+      ['white', 'black'].forEach((role) => {
+        const info = room.playerInfo[role];
+        if (info && info.username) {
+          const newPoints = (info.chess_points || 0) + 1;
+          info.chess_points = newPoints;
+          (async () => {
+            try {
+              await updateUserPoints(info.username, newPoints);
+              const sockId = room.players[role];
+              if (sockId && sockId !== 'ai') {
+                io.to(sockId).emit('points_update', { chess_points: newPoints });
+              }
+            } catch (e) {
+              console.error('[points] failed to update points for', info.username, e);
+            }
+          })();
+        }
+      });
     }
   } catch (e) {
     console.error('[points] error in endGame points flow', e);

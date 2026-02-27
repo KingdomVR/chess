@@ -729,7 +729,7 @@ function setPlayerNames(data) {
 }
 
 // display a transient toast message
-function showToast(msg, ms = 3000) {
+function showToast(msg, ms = 10000) {
   const t = document.createElement('div');
   t.className = 'toast';
   t.textContent = msg;
@@ -751,11 +751,11 @@ socket.on('points_update', ({ chess_points, delta }) => {
     botEl.textContent = `${state.username} (${roleName}) — ${state.chess_points} pts`;
   }
   if (actualDelta > 0) {
-    showToast('You earned +' + actualDelta + ' chess point' + (actualDelta > 1 ? 's' : '') + '! New score: ' + chess_points, 4000);
+    showToast('You earned +' + actualDelta + ' chess point' + (actualDelta > 1 ? 's' : '') + '! New score: ' + chess_points, 10000);
   } else if (actualDelta < 0) {
-    showToast('Better luck next time — ' + actualDelta + ' point. New score: ' + chess_points, 4000);
+    showToast('Better luck next time — ' + actualDelta + ' point. New score: ' + chess_points, 10000);
   } else {
-    showToast('Your score: ' + chess_points, 3000);
+    showToast('Your score: ' + chess_points, 10000);
   }
 });
 

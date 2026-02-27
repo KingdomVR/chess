@@ -1,5 +1,8 @@
 'use strict';
 
+// Load environment from .env when present
+require('dotenv').config();
+
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -10,9 +13,13 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// External user API config
-const USER_API_BASE = process.env.USER_API_BASE || 'http://127.0.0.1:5000';
-const USER_API_KEY = process.env.USER_API_KEY || 'supersecret';
+// External user API config (set in .env or environment)
+const USER_API_BASE = process.env.USER_API_BASE;
+const USER_API_KEY = process.env.USER_API_KEY;
+
+if (!USER_API_BASE || !USER_API_KEY) {
+  console.warn('[config] USER_API_BASE or USER_API_KEY not set. API proxy and user updates may fail.');
+}
 
 app.use(express.static(path.join(__dirname, 'public')));
 
